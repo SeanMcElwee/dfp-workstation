@@ -1,48 +1,42 @@
 library(scales)
-
-setwd("~/Desktop/Data For Progress/Mapping Functions/")
-
-census_fips <- function(){
-  census_fips <- xml2::read_html("https://www.census.gov/geo/reference/ansi_statetables.html") %>% 
-    rvest::html_nodes(xpath = '//*[@id="middle-column"]/div/div[1]/div[2]/table') %>%
-    rvest::html_table(header = TRUE)
-  census_fips <- census_fips[[1]]
-  names(census_fips) <- c("name", "fips", "abbr")
-  census_fips$name_lower <- tolower(census_fips$name)
-  assign("census_fips", census_fips, envir = .GlobalEnv)
-}
-census_fips()
-
-expand_rental <- read.csv("data/expand_rental.csv")
-
-expand_rental <- plyr::join(census_fips, expand_rental)
-
 library(ggplot2)
 library(fiftystater)
-library(tigris)
 
-??tigris
-install.packages("sf")
+# set working directory
+setwd("~/Desktop/Data For Progress/US Mapping/")
 
-library(tigris)
-states
-data("fifty_states") # this line is optional due to lazy data loading
+# load in function to load census fips data
+source("load_census_fips.R")
 
-range(expand_rental$Mean.Success)
+# load census fips data
+load_census_fips()
 
-# map_id creates the aesthetic mapping to the state name column in your data
-ggplot(expand_rental, aes(map_id = name_lower)) + 
-  # map points to the fifty_states shape data
-#  geom_map(fill = NA, map = fifty_states, color = "black") + 
-  geom_map(aes(fill = Mean.Success/100), map = fifty_states, color = NA, size = 0) + 
-  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
-  coord_map() +
-  scale_fill_gradientn(name = "", label=percent, colors=c("#ff8000","#FFFFFF","#006600"), guide = "colourbar",  limits = c(0.2,0.8), na.value = "#006600") +
-  scale_x_continuous(breaks = NULL) + 
-  scale_y_continuous(breaks = NULL) +
-  labs(x = "", y = "") +
-  theme(panel.background = element_blank())
+# load in the csv
+expand_rental <- read.csv("data/expand_rental.csv")
 
-name = "Support For Expanded Rental Programs", 
+# join it into the census basetable
+expand_rental <- plyr::join(census_fips, expand_rental)
 
-??percent
+produce_map <- function(data, title=NULL, subtitle=NULL, font="Verdana"){
+  ggplot(data, aes(map_id = name_lower)) + 
+    geom_map(aes(fill = Mean.Success/100), map = fifty_states, color = "white", size = 0.05) + 
+    expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+    coord_map() +
+    scale_fill_gradientn(name = "", label=percent, colors=c("#ff8000","#FFFFFF","#006600"), guide = guide_colorbar(direction = "horizontal", barheight = 0.75, barwidth = 30),  limits = c(0.2,0.8), na.value = "#006600") +
+    scale_x_continuous(breaks = NULL) + 
+    scale_y_continuous(breaks = NULL) +
+    labs(x = "", y = "", title = title, subtitle = subtitle) +
+    theme(
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 14),
+      text = element_text(family = font),
+      legend.position="bottom"
+    )  
+}
+
+pdf(filename = "rental.png", units = "px")
+produce_map(data = expand_rental, title = "Support For Expanded Rental Programs", subtitle = "SUBTITLE TEXT HERE", font = "Georgia")
+dev.off()
+
+getwd()
