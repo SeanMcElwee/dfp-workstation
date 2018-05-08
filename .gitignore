@@ -1,2 +1,4 @@
 # hide private data
 /data
+.Rdata
+.Rhistory
