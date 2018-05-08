@@ -47,9 +47,9 @@ prelim_fix <- function(object,params){
 states <- readOGR(dsn = "cb_2017_us_state_20m",layer="cb_2017_us_state_20m_2")
 states <- subset(states, NAME %in% census_fips$name) 
 states <- spTransform(states, CRS("+init=epsg:2163"))
-#states = fixup(states,c(-35,1.8,-2800000,-2600000),c(-35,1,6800000,-1600000))
-states <- fixup(states, c(-35,1.75,-3500000,-2000000),c(-35,1,4500000,-1200000))
-states <- spTransform(states, CRS("+init=epsg:4326"))
+states = fixup(states,c(-35,1.8,-2600000,-2500000),c(-35,1,5300000,-1600000))
+#states <- fixup(states, c(-35,1.75,-3500000,-2000000),c(-35,1,4500000,-1200000))
+#states <- spTransform(states, CRS("+init=epsg:4326"))
 
 id_lookup <- data.frame("id"=rownames(states@data), "STUSPS"=states@data$STUSPS)
 nationwide <- unionSpatialPolygons(states, rep(1,length(states)))
@@ -60,20 +60,20 @@ nationwide <- fortify(nationwide)
 produce_map <- function(states_data, column, title=NULL, subtitle=NULL, font="Verdana"){
   states <- plyr::join(states_f, states_data)
   ggplot() +
-    geom_polygon(data=nationwide, aes(x=long, y=lat, group=group), fill = NA, color = "black", size = 1.25) +
-    geom_polygon(data=states, aes(x=long, y=lat, group=group, fill = get(column)/100), color = "white", size = 0.075) +
+    geom_polygon(data=nationwide, aes(x=long, y=lat, group=group), fill = NA, color = "black", size = 1) +
+    geom_polygon(data=states, aes(x=long, y=lat, group=group, fill = get(column)/100), color = "black", size = 0.2) +
     scale_fill_gradientn(
       name = "", label=percent, colors=c("#ff8000","#FFFFFF","#006600"), values = c(0, 0.45, 0.55, 1),
-      guide = guide_colorbar(direction = "horizontal", barheight = 1.5, barwidth = 45, guide = guide_legend()),
+      guide = guide_colorbar(direction = "horizontal", barheight = 1.5, barwidth = 45, ticks = FALSE, guide = guide_legend()),
       limits = c(0.2,0.8), na.value = "#006600") +
-    coord_map() +
+#    coord_map() +
     labs(title = title, subtitle = toupper(subtitle)) +
     theme(
       panel.background = element_blank(),
       plot.title = element_text(hjust = 0.5, size = 24),
       plot.subtitle = element_text(hjust = 0.5, size = 16, face = "bold"),
       text = element_text(family = font),
-      legend.text = element_text(size = 12),
+      legend.text = element_text(size = 16),
       legend.position="bottom",
       axis.title.y=element_blank(),
       axis.text.y=element_blank(),
@@ -84,11 +84,14 @@ produce_map <- function(states_data, column, title=NULL, subtitle=NULL, font="Ve
     )
 }
 
-png(filename = "expand_rental.png", width = 5 * diff(states@bbox[,1]), height = 5 * diff(states@bbox[,2]), units = "px")
+
+png(filename = "expand_rental.png", width = 750, height = 600, units = "px")
+#png(filename = "expand_rental.png", width = 5 * diff(states@bbox[,1]), height = 5 * diff(states@bbox[,2]), units = "px")
 produce_map(polling_data, "expand_rental", title = "expand_rental", font = "Arial")
 dev.off()
 
-png(filename = "housing_cand.png", width = 5 * diff(states@bbox[,1]), height = 5 * diff(states@bbox[,2]), units = "px")
+png(filename = "housing_cand.png", width = 750, height = 600, units = "px")
+#png(filename = "housing_cand.png", width = 5 * diff(states@bbox[,1]), height = 5 * diff(states@bbox[,2]), units = "px")
 produce_map(polling_data, "housing_cand", title = "housing_cand", font = "Arial")
 dev.off()
 
