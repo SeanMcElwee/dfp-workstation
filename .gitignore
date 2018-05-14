@@ -1,4 +1,4 @@
 # hide private data
+/archive
 /data
-.Rdata
-.Rhistory
+/maps

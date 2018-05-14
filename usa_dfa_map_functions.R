@@ -1,0 +1,142 @@
+library(plyr)
+library(dplyr)
+library(ggplot2) # ggplot, fortify
+library(rgdal) # readOGR, spTransform
+library(maptools) # elide, unionSpatialPolygons
+library(scales) # percent
+library(ggmap)
+
+# write a function that pulls the census fips information from the census website and then saves as a dataframe
+load_census_fips <- function(){
+  census_fips <- xml2::read_html("https://www.census.gov/geo/reference/ansi_statetables.html") %>% 
+    rvest::html_nodes(xpath = '//*[@id="middle-column"]/div/div[1]/div[2]/table') %>%
+    rvest::html_table(header = TRUE)
+  census_fips <- census_fips[[1]]
+  names(census_fips) <- c("name", "fips", "abbr")
+  census_fips$name_lower <- tolower(census_fips$name)
+  census_fips$conus <- ifelse(census_fips$abbr %in% c("HI","AK"), FALSE, TRUE)
+  assign("census_fips", census_fips, envir = .GlobalEnv)
+}
+
+# write a function to adjust the position of alaska and hawaii
+fixup <- function(usa, alaskaFix, hawaiiFix){
+  
+  # adjust alaska
+  alaska=usa[usa$NAME=="Alaska",]
+  alaska = prelim_fix(alaska,alaskaFix)
+  proj4string(alaska) <- proj4string(usa)
+  
+  # adjust hawaii
+  hawaii = usa[usa$NAME=="Hawaii",]
+  hawaii = prelim_fix(hawaii,hawaiiFix)
+  proj4string(hawaii) <- proj4string(usa)
+  
+  # bind hawaii and alaska back into the USA
+  usa = usa[! usa$NAME %in% c("Alaska","Hawaii"),]
+  usa = rbind(usa,alaska,hawaii)
+  
+  # return the merged and adjusted USA shapefile
+  return(usa)
+}
+
+# write a subfunction to take care of the specific point adjustments
+prelim_fix <- function(object, params){
+  r=params[1];scale=params[2];shift=params[3:4]
+  object = elide(object,rotate=r)
+  size = max(apply(bbox(object),1,diff))/scale
+  object = elide(object,scale=size)
+  object = elide(object,shift=shift)
+  object
+}
+
+usa_dfp_map <- 
+  function(
+    states_data, column, output_folder,
+    title=NULL, subtitle=NULL, font="Arial", color_scheme="orange_to_green", 
+    limits=c(0.2,0.8), save_plot=TRUE
+  ){
+
+  # load in the census fips dataframe
+  load_census_fips()
+  
+  # load in the usa state shapefile (that has been cleaned) 
+  # and transform it 
+  states <- readOGR(dsn = "cb_2017_us_state_20m",layer="cb_2017_us_state_20m_2", verbose = FALSE) %>%
+    subset(NAME %in% census_fips$name) %>%
+    spTransform(CRS("+init=epsg:2163")) %>%
+    fixup(c(-35,1.8,-2600000,-2500000),c(-35,1,5300000,-1600000))
+  
+  # create the nationwide shapefile merging the statewide polygons
+  nationwide <- unionSpatialPolygons(states, rep(1,length(states)))
+  
+  # create an id lookup to attach the state abbreviation to state shapefile
+  id_lookup <- data.frame("id"=rownames(states@data), "STUSPS"=states@data$STUSPS)
+  
+  # fortify the state shapefile and attach the abbreviation
+  states_shp <- fortify(states)
+  states_shp$abbr <- id_lookup[match(states_shp$id, id_lookup$id),]$STUSPS
+  
+  # fortify the nationwide shapefile
+  nationwide_shp <- fortify(nationwide)
+  
+  # join it into the census fip basetable
+  states_data <- suppressMessages(join(census_fips, states_data))
+  
+  # choose color scheme
+  if(color_scheme=="orange_to_green"){
+    color_scheme_values=c("#ff8000","#FFFFFF","#006600")
+  }else if(color_scheme=="brown_to_purple") {
+    color_scheme_values=c("#802b00","#FFFFFF","#4d0099")
+  }
+  
+  # if there is an overflow, choose overflow colors & provide informative warnings
+  no_max_overflow <- max(limits) > max(states_data[, column])/100
+  no_min_overflow <- min(limits) < min(states_data[, column])/100
+  
+  if(no_max_overflow & no_min_overflow) {
+    message("All data points are contained within the mapping limits.")
+    overflow_color <- "#FFFFFF"
+  } else if (no_max_overflow & !no_min_overflow) {
+    message("There is an overflow at the lower mapping limit. Setting mapping overflow color to min color.")
+    overflow_color <- color_scheme_values[1]
+  } else if (!no_max_overflow & no_min_overflow) {
+    message("There is an overflow at the lower mapping limit. Setting mapping overflow color to max color.")
+    overflow_color <- color_scheme_values[3]
+  } else if (!no_max_overflow & !no_max_overflow) {
+    stop("There is an overflow at the both mapping limits. Please correct and remap.")
+  }
+  
+  # join the data to the shapefile
+  states <- suppressMessages(join(states_shp, states_data))
+  
+  # write the plot
+  plot <- ggplot() +
+    geom_polygon(data=nationwide, aes(x=long, y=lat, group=group), fill = NA, color = "black", size = 1) +
+    geom_polygon(data=states, aes(x=long, y=lat, group=group, fill = get(column)/100), color = "black", size = 0.2) +
+    scale_fill_gradientn(
+      name = "", label=percent, colors=color_scheme_values, values = c(0, 0.45, 0.55, 1),
+      guide = guide_colorbar(direction = "horizontal", barheight = 1.5, barwidth = 45, ticks = FALSE, guide = guide_legend()),
+      limits = limits, na.value = overflow_color) +
+    labs(title = title, subtitle = toupper(subtitle)) +
+    theme(
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5, size = 24),
+      plot.subtitle = element_text(hjust = 0.5, size = 16, face = "bold"),
+      text = element_text(family = font),
+      legend.text = element_text(size = 16),
+      legend.position="bottom",
+      axis.title.y=element_blank(),
+      axis.text.y=element_blank(),
+      axis.ticks.y=element_blank(),
+      axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank()
+    )
+  
+  if(save_plot){png(filename = paste0(output_folder, "/", column, ".png"), width = 750, height = 600, units = "px")}
+  print(plot)
+  if(save_plot){dev.off()}
+}
+
+
+
