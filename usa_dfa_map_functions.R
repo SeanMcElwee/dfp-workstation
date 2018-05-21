@@ -51,9 +51,10 @@ prelim_fix <- function(object, params){
 
 usa_dfp_map <- 
   function(
-    states_data, column, output_folder,
-    title=NULL, subtitle=NULL, font="Arial", color_scheme="orange_to_green", 
-    limits=c(0.2,0.8), save_plot=TRUE
+    states_data, color_value, alpha_value=NULL,
+    title=NULL, subtitle=NULL, 
+    font="Arial", color_scheme="orange_to_green", limits=c(0.2,0.8), 
+    save_plot=TRUE, output_folder
   ){
 
   # load in the census fips dataframe
@@ -90,19 +91,25 @@ usa_dfp_map <-
   }
   
   # if there is an overflow, choose overflow colors & provide informative warnings
-  no_max_overflow <- max(limits) > max(states_data[, column])/100
-  no_min_overflow <- min(limits) < min(states_data[, column])/100
+  top_range <- max(states_data[, color_value])/100
+  bottom_range <- min(states_data[, color_value])/100
+  no_max_overflow <- max(limits) > top_range
+  no_min_overflow <- min(limits) < bottom_range
   
   if(no_max_overflow & no_min_overflow) {
+    message(paste0("Range: ", top_range, " to ", bottom_range))
     message("All data points are contained within the mapping limits.")
     overflow_color <- "#FFFFFF"
   } else if (no_max_overflow & !no_min_overflow) {
+    message(paste0("Range: ", top_range, " to ", bottom_range))
     message("There is an overflow at the lower mapping limit. Setting mapping overflow color to min color.")
     overflow_color <- color_scheme_values[1]
   } else if (!no_max_overflow & no_min_overflow) {
+    message(paste0("Range: ", top_range, " to ", bottom_range))
     message("There is an overflow at the lower mapping limit. Setting mapping overflow color to max color.")
     overflow_color <- color_scheme_values[3]
   } else if (!no_max_overflow & !no_max_overflow) {
+    message(paste0("Range: ", top_range, " to ", bottom_range))
     stop("There is an overflow at the both mapping limits. Please correct and remap.")
   }
   
@@ -110,14 +117,29 @@ usa_dfp_map <-
   states <- suppressMessages(join(states_shp, states_data))
   
   # write the plot
-  plot <- ggplot() +
-    geom_polygon(data=nationwide, aes(x=long, y=lat, group=group), fill = NA, color = "black", size = 1) +
-    geom_polygon(data=states, aes(x=long, y=lat, group=group, fill = get(column)/100), color = "black", size = 0.2) +
+  plot <- ggplot()
+  
+  # fill with color, create conditional on alpha value existing
+  if(!is.null(alpha_value)) {
+    # if using an alpha value add alpha scale & remove alpha legend
+    plot <- plot +
+      geom_polygon(data=states, aes(x=long, y=lat, group=group, fill = get(color_value)/100,  alpha = get(alpha_value)), color = "black", size = 0.2) +
+      scale_alpha_continuous(guide = "none")
+  } else {
+    plot <- plot +
+      geom_polygon(data=states, aes(x=long, y=lat, group=group, fill = get(color_value)/100), color = "black", size = 0.2)
+  }
+  
+  # add national border & fill gradient & title
+  plot <- plot + geom_polygon(data=nationwide, aes(x=long, y=lat, group=group), fill = NA, color = "black", size = 0.8) +
     scale_fill_gradientn(
       name = "", label=percent, colors=color_scheme_values, values = c(0, 0.45, 0.55, 1),
       guide = guide_colorbar(direction = "horizontal", barheight = 1.5, barwidth = 45, ticks = FALSE, guide = guide_legend()),
       limits = limits, na.value = overflow_color) +
-    labs(title = title, subtitle = toupper(subtitle)) +
+    labs(title = title, subtitle = toupper(subtitle))
+
+  # add plot theme
+  plot <- plot +
     theme(
       panel.background = element_blank(),
       plot.title = element_text(hjust = 0.5, size = 24),
@@ -132,8 +154,8 @@ usa_dfp_map <-
       axis.text.x=element_blank(),
       axis.ticks.x=element_blank()
     )
-  
-  if(save_plot){png(filename = paste0(output_folder, "/", column, ".png"), width = 750, height = 600, units = "px")}
+
+  if(save_plot){png(filename = paste0(output_folder, "/", color_value, ".png"), width = 750, height = 600, units = "px")}
   print(plot)
   if(save_plot){dev.off()}
 }
