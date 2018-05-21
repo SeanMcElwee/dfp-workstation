@@ -54,7 +54,7 @@ usa_dfp_map <-
     states_data, color_value, alpha_value=NULL,
     title=NULL, subtitle=NULL, 
     font="Arial", color_scheme="orange_to_green", limits=c(0.2,0.8), 
-    save_plot=TRUE, output_folder
+    save_plot=TRUE, output_folder=NULL
   ){
 
   # load in the census fips dataframe
@@ -155,7 +155,7 @@ usa_dfp_map <-
       axis.ticks.x=element_blank()
     )
 
-  if(save_plot){png(filename = paste0(output_folder, "/", color_value, ".png"), width = 750, height = 600, units = "px")}
+  if(save_plot){png(filename = paste0(if(is.null(output_folder)){""}else{paste0(output_folder, "/")}, color_value, ".png"), width = 750, height = 600, units = "px")}
   print(plot)
   if(save_plot){dev.off()}
 }
