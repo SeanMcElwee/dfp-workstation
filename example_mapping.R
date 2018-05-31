@@ -19,7 +19,7 @@ usa_dfp_map(
   output_folder = NULL  # output folder destination; leave NULL for same folder
 )
 
-# appends the 
+# appends the branding to the bottom of the produced map
 append_dfp_branding(
   plot_location = "trump_approval_april.png", # this is the full path to the plot produced in the first step
   annotation_text = "data retrieved from\nmorning consult 2018" # this is the annotation to be attached; usually data source
