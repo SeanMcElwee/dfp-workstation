@@ -5,6 +5,7 @@ library(rgdal) # readOGR, spTransform
 library(maptools) # elide, unionSpatialPolygons
 library(scales) # percent
 library(ggmap)
+library(magick) # need to add annotation
 
 # write a function that pulls the census fips information from the census website and then saves as a dataframe
 load_census_fips <- function(){
@@ -49,11 +50,10 @@ prelim_fix <- function(object, params){
   object
 }
 
-usa_dfp_map <- 
-  function(
+usa_dfp_map <- function(
     states_data, color_value, alpha_value=NULL,
     title=NULL, subtitle=NULL, 
-    font="Arial", color_scheme="orange_to_green", limits=c(0.2,0.8), 
+    font="Montserrat", color_scheme="orange_to_green", limits=c(0.2,0.8), 
     save_plot=TRUE, output_folder=NULL
   ){
 
@@ -62,7 +62,7 @@ usa_dfp_map <-
   
   # load in the usa state shapefile (that has been cleaned) 
   # and transform it 
-  states <- readOGR(dsn = "cb_2017_us_state_20m",layer="cb_2017_us_state_20m_2", verbose = FALSE) %>%
+  states <- readOGR(dsn = "resources/cb_2017_us_state_20m_clean",layer="cb_2017_us_state_20m_clean", verbose = FALSE) %>%
     subset(NAME %in% census_fips$name) %>%
     spTransform(CRS("+init=epsg:2163")) %>%
     fixup(c(-35,1.8,-2600000,-2500000),c(-35,1,5300000,-1600000))
@@ -160,5 +160,35 @@ usa_dfp_map <-
   if(save_plot){dev.off()}
 }
 
-
-
+append_dfp_branding <- function(plot_location, annotation_text, font="Montserrat"){
+  
+  # load in the plot from custom location
+  plot <- image_read(plot_location) 
+  
+  # load in the watermark row & whitespace
+  watermark_raw <- image_read("resources/watermark.png") 
+  whitespace <- image_read("resources/whitespace.png") 
+  
+  # format the watermark
+  watermark <- watermark_raw %>%
+    image_scale("500") %>% 
+    image_background("white", flatten = TRUE) %>%
+    image_border("white","25x26")
+  
+  # format the annotation
+  annotation <- whitespace %>%
+    image_border("white","25x0") %>%
+    image_annotate(
+      toupper(annotation_text), color = "black", size = 12, 
+      gravity = "center", font = font
+    )
+  
+  # merge into bottom border
+  bottom_border <- image_append(image_scale(c(watermark, annotation), "x100"))
+  
+  # create final ploy
+  final_plot <- image_append(image_scale(c(plot, bottom_border), "750"), stack = TRUE)
+  
+  # save final plot
+  image_write(final_plot, path = plot_location, format = "png")
+}
