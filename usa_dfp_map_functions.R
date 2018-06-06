@@ -88,6 +88,12 @@ usa_dfp_map <- function(
     color_scheme_values=c("#ff8000","#FFFFFF","#006600")
   }else if(color_scheme=="brown_to_purple") {
     color_scheme_values=c("#802b00","#FFFFFF","#4d0099")
+  }else if(color_scheme=="teal_to_pink"){
+    color_scheme_values=c("#00b3b3","#FFFFFF","#b300b3")
+  }else if(color_scheme=="plum_to_gold"){
+    color_scheme_values=c("#993366","#FFFFFF","#b38f00")
+  }else if(color_scheme=="red_to_blue"){
+    color_scheme_values=c("#d65454","#FFFFFF","#3989cb")
   }
   
   # if there is an overflow, choose overflow colors & provide informative warnings

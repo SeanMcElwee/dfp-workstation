@@ -13,7 +13,7 @@ usa_dfp_map(
   title = "Trump Approval Rating", # title name; default is NULL
   subtitle = NULL, # subtitle name; default is NULL
   font = "Montserrat", # font of choice; limited selection at the moment
-  color_scheme = "orange_to_green", # choose the color scheme for the map default is "orange_to_green" also supports "brown_to_purple"
+  color_scheme = "red_to_blue", # choose the color scheme for the map default is "orange_to_green" also supports "brown_to_purple"
   limits = c(0.2, 0.8), # the range of the color scale; e.g. c(-1, 1); default is c(0.2, 0.8)
   save_plot = FALSE, # do you want to save the plot (TRUE) or do you want to just display the plot (FALSE)?
   output_folder = NULL  # output folder destination; leave NULL for same folder
