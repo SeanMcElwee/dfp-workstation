@@ -148,7 +148,7 @@ usa_dfp_map <- function(
   plot <- plot +
     theme(
       panel.background = element_blank(),
-      plot.title = element_text(hjust = 0.5, size = 24),
+      plot.title = element_text(hjust = 0.5, size = 40),
       plot.subtitle = element_text(hjust = 0.5, size = 16, face = "bold"),
       text = element_text(family = font),
       legend.text = element_text(size = 16),
