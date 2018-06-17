@@ -1,7 +1,5 @@
 # hide private data
-/resources
-/mapping_function/archive
-/mapping_function/data
-/mapping_function/maps
-/senator_tweets/data
-/senator_tweets/graphs
+/archive
+/data
+/graphs
+/maps
